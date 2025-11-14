@@ -1,0 +1,154 @@
+[project]
+name = "cloud-ceo-dbx"
+version = "0.1.0"
+description = "Cloud CEO (Cloud Efficiency Optimisation) for Databricks - SQL anti-pattern detection and query optimization accelerator"
+readme = "README.md"
+authors = [
+    { name = "Chris Marshall", email = "chris.marshall@eonnext.com" }
+]
+requires-python = ">=3.11"
+keywords = ["databricks", "spark", "sql", "optimization", "anti-patterns", "data-engineering"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Quality Assurance",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "pydantic>=2.12.0,<3.0.0",
+    "PyYAML>=6.0.2,<7.0.0",
+    "structlog>=25.5.0,<26.0.0",
+    "sqlglot>=27.29.0,<28.0.0",
+    "rich>=14.2.0,<15.0.0",
+    "tiktoken>=0.12.0,<1.0.0",
+    "openai>=2.7.0,<3.0.0",
+    "httpx[http2]>=0.28.0,<1.0.0",
+    "langchain>=1.0.5,<2.0.0",
+    "langchain-core>=1.0.4,<2.0.0",
+    "langchain-openai>=1.0.2,<2.0.0",
+    "langchain-anthropic>=1.0.1,<2.0.0",
+    "langchain-aws>=1.0.0,<2.0.0",
+    "langgraph>=1.0.2,<2.0.0",
+]
+
+[project.optional-dependencies]
+databricks = [
+    "pyspark>=4.0.1,<5.0.0",
+]
+
+# LLM enhancements: Semantic search for context compression
+# - Enables hybrid search (keyword + semantic similarity) for better quality
+# - Falls back to keyword-based filtering if not installed
+# - ~500MB download (one-time, caches locally)
+llm = [
+    "sentence-transformers>=5.1.2,<6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/cloud-ceo-dbx"
+Documentation = "https://github.com/your-org/cloud-ceo-dbx/docs"
+Repository = "https://github.com/your-org/cloud-ceo-dbx"
+"Bug Tracker" = "https://github.com/your-org/cloud-ceo-dbx/issues"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cloud_ceo = [
+    "rules/built_in/*.yaml",
+    "rules/built_in/*.json",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.4.2,<9.0.0",
+    "pytest-cov>=7.0.0,<8.0.0",
+    "pytest-mock>=3.15.0,<4.0.0",
+    "pytest-asyncio>=1.2.0,<2.0.0",
+    "freezegun>=1.5.5,<2.0.0",
+    "mypy>=1.18.0,<2.0.0",
+    "ruff>=0.14.4,<1.0.0",
+    "black>=25.9.0,<26.0.0",
+    "pyspark==4.0.1",
+    "delta-spark==4.0.0",
+    "ipython>=9.7.0,<10.0.0",
+    "sentence-transformers>=5.1.2,<6.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+markers = [
+    "spark: marks tests as requiring PySpark (deselect with '-m \"not spark\"')",
+    "asyncio: marks tests as async tests",
+]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src/cloud_ceo",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--log-level=DEBUG",
+    "--log-cli-level=INFO",
+]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(message)s"
+log_file_level = "DEBUG"
+
+[tool.coverage.run]
+source = ["src/cloud_ceo"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false

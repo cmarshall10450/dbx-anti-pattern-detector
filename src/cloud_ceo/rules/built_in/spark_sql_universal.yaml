@@ -1,0 +1,306 @@
+# yaml-language-server: $schema=./schema.json
+---
+# Universal Anti-Pattern Rules for Spark SQL
+# These rules detect common performance issues that apply across all Databricks/Spark workloads
+
+- rule_id: "SPARK_001"
+  name: "Non-sargable predicate with functions on filtered columns"
+  category: "universal"
+  severity: "high"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:NonSargablePredicateDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Applying functions to columns in WHERE clause predicates prevents the optimizer from using indexes and partition pruning, causing full table scans. These predicates are non-sargable (not Search ARGument ABLE), meaning Spark cannot efficiently filter data. Common offenders include date functions (YEAR, MONTH, DATE_TRUNC, EXTRACT), string functions (UPPER, LOWER, SUBSTRING, TRIM), type conversions (CAST), and math functions (ABS, ROUND). Rewrite predicates to apply functions to literal values instead of columns, or use range predicates that preserve sargability."
+  dependencies: []
+  metadata:
+    confidence_score: 0.95
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    -- Date functions
+    SELECT customer_id, order_total
+    FROM orders
+    WHERE YEAR(order_date) = 2024
+      AND MONTH(order_date) = 3
+
+    -- String functions
+    SELECT * FROM users
+    WHERE UPPER(email) = 'USER@EXAMPLE.COM'
+
+    -- Type conversion
+    SELECT * FROM products
+    WHERE CAST(price AS INT) = 100
+  example_fixed_query: |
+    -- Date functions: use range predicates
+    SELECT customer_id, order_total
+    FROM orders
+    WHERE order_date >= '2024-03-01'
+      AND order_date < '2024-04-01'
+
+    -- String functions: store normalized values or use range
+    SELECT * FROM users
+    WHERE email = 'user@example.com'  -- assuming email stored lowercase
+
+    -- Type conversion: apply to literal instead
+    SELECT * FROM products
+    WHERE price >= 100.0 AND price < 101.0
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-partition-pruning.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#partition-pruning"
+    - "https://docs.databricks.com/optimizations/predicate-pushdown.html"
+
+- rule_id: "SPARK_002"
+  name: "SELECT * when downstream uses subset of columns"
+  category: "universal"
+  severity: "high"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:SelectStarDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Using SELECT * retrieves all columns from a table, even when only a subset is needed downstream. This wastes I/O bandwidth, memory, and network resources. Explicitly specify only the required columns to reduce data transfer and improve query performance. This also makes queries more maintainable and resistant to schema changes."
+  dependencies: []
+  metadata:
+    confidence_score: 0.90
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT *
+    FROM sales_transactions
+    WHERE sale_date >= '2024-01-01'
+  example_fixed_query: |
+    SELECT transaction_id, customer_id, sale_amount, sale_date
+    FROM sales_transactions
+    WHERE sale_date >= '2024-01-01'
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#other-tips"
+
+- rule_id: "SPARK_003"
+  name: "Missing partition filters on partitioned tables"
+  category: "universal"
+  severity: "critical"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:MissingPartitionFilterDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Querying partitioned tables without filtering on partition columns forces Spark to scan all partitions, eliminating the performance benefits of partitioning. Always include partition column filters in WHERE clauses to enable partition pruning. This dramatically reduces the amount of data scanned and improves query performance by orders of magnitude."
+  dependencies: ["spark_catalog"]
+  metadata:
+    confidence_score: 0.98
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT product_id, revenue
+    FROM sales
+    WHERE product_id = 'P123'
+  example_fixed_query: |
+    SELECT product_id, revenue
+    FROM sales
+    WHERE sale_year = 2024
+      AND sale_month = 3
+      AND product_id = 'P123'
+  documentation_links:
+    - "https://docs.databricks.com/tables/partitions.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#partition-pruning"
+
+- rule_id: "SPARK_004"
+  name: "Cartesian join due to missing join conditions"
+  category: "universal"
+  severity: "critical"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:CartesianJoinDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Joining tables without explicit join conditions (or using WHERE clauses without proper join predicates) creates a Cartesian product where every row from the first table is paired with every row from the second table. This results in exponential data explosion and catastrophic performance degradation. Always use explicit JOIN syntax with proper ON conditions to avoid accidental Cartesian products."
+  dependencies: []
+  metadata:
+    confidence_score: 0.99
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT o.order_id, c.customer_name
+    FROM orders o, customers c
+    WHERE o.total > 1000
+  example_fixed_query: |
+    SELECT o.order_id, c.customer_name
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.customer_id
+    WHERE o.total > 1000
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select-join.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#join-strategy-hints"
+
+- rule_id: "SPARK_005"
+  name: "Inefficient GROUP BY with high cardinality in wrong order"
+  category: "universal"
+  severity: "high"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:GroupByCardinalityDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "When grouping by multiple columns, the order matters for hash aggregation efficiency. Placing high-cardinality columns first forces Spark to create more intermediate groups, increasing memory pressure and shuffle data. Reorder GROUP BY columns from low to high cardinality to minimize hash table size and reduce memory consumption during aggregation."
+  dependencies: []
+  metadata:
+    confidence_score: 0.85
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT user_id, country, COUNT(*) as cnt
+    FROM user_events
+    GROUP BY user_id, country
+  example_fixed_query: |
+    SELECT country, user_id, COUNT(*) as cnt
+    FROM user_events
+    GROUP BY country, user_id
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select-groupby.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#other-tips"
+
+- rule_id: "SPARK_006"
+  name: "DISTINCT on already unique columns"
+  category: "universal"
+  severity: "medium"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:DistinctOnUniqueDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Using DISTINCT on columns that are already guaranteed to be unique (such as primary keys or unique constraints) adds unnecessary overhead. The DISTINCT operation requires sorting or hashing to eliminate duplicates, which wastes CPU cycles and memory when no duplicates exist. Remove DISTINCT when querying unique columns to avoid redundant processing."
+  dependencies: ["spark_catalog"]
+  metadata:
+    confidence_score: 0.88
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT DISTINCT user_id
+    FROM users
+    WHERE created_date >= '2024-01-01'
+  example_fixed_query: |
+    SELECT user_id
+    FROM users
+    WHERE created_date >= '2024-01-01'
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select-distinct.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html"
+
+- rule_id: "SPARK_007"
+  name: "OR conditions that could be IN clauses"
+  category: "universal"
+  severity: "medium"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:OrToInDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Multiple OR conditions comparing the same column to different values create verbose, hard-to-read queries and may prevent optimizer optimizations. The IN clause is semantically clearer, more concise, and allows Spark's optimizer to better leverage partition pruning and predicate pushdown. Use IN clauses instead of chained OR conditions for equality comparisons on the same column."
+  dependencies: []
+  metadata:
+    confidence_score: 0.92
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT *
+    FROM products
+    WHERE category = 'Electronics'
+       OR category = 'Computers'
+       OR category = 'Software'
+  example_fixed_query: |
+    SELECT *
+    FROM products
+    WHERE category IN ('Electronics', 'Computers', 'Software')
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select-where.html"
+    - "https://spark.apache.org/docs/latest/sql-performance-tuning.html#predicate-pushdown"
+
+- rule_id: "SPARK_008"
+  name: "LIKE pattern matching without wildcards"
+  category: "universal"
+  severity: "low"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:LikeWithoutWildcardsDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Using LIKE for exact string matching (without % or _ wildcards) is inefficient because LIKE is designed for pattern matching with wildcards. The LIKE operator invokes pattern matching logic that is unnecessary for exact comparisons. Use the equality operator (=) for exact matches to enable better index usage and improve query performance."
+  dependencies: []
+  metadata:
+    confidence_score: 0.95
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT *
+    FROM customers
+    WHERE email LIKE 'user@example.com'
+  example_fixed_query: |
+    SELECT *
+    FROM customers
+    WHERE email = 'user@example.com'
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/functions/like.html"
+    - "https://spark.apache.org/docs/latest/sql-ref-functions-builtin.html#string-functions"
+
+- rule_id: "SPARK_009"
+  name: "Multiple COUNT DISTINCT in single query"
+  category: "universal"
+  severity: "high"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:MultipleCountDistinctDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Using multiple COUNT(DISTINCT) aggregations in a single query prevents Spark from using partial aggregation optimizations and forces full data shuffles for each distinct count. Each COUNT(DISTINCT) requires separate hash tables and shuffle operations, dramatically increasing memory pressure. Consider splitting into separate queries or using approximate algorithms (e.g., HyperLogLog via approx_count_distinct) for better performance."
+  dependencies: []
+  metadata:
+    confidence_score: 0.87
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT
+      COUNT(DISTINCT user_id) as unique_users,
+      COUNT(DISTINCT session_id) as unique_sessions
+    FROM page_views
+  example_fixed_query: |
+    SELECT
+      approx_count_distinct(user_id) as unique_users,
+      approx_count_distinct(session_id) as unique_sessions
+    FROM page_views
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/functions/count.html"
+    - "https://docs.databricks.com/sql/language-manual/functions/approx_count_distinct.html"
+
+- rule_id: "SPARK_010"
+  name: "Window functions without PARTITION BY on large datasets"
+  category: "universal"
+  severity: "high"
+  detection_method: "AST"
+  detector_class: "cloud_ceo.detectors.spark:WindowWithoutPartitionDetector"
+  custom_thresholds: {}
+  custom_message: null
+  explanation: "Using window functions without PARTITION BY on large datasets forces all data to be processed in a single partition, eliminating parallelism and causing severe performance bottlenecks. Without partitioning, Spark cannot distribute the window computation across executors, leading to out-of-memory errors and extremely long execution times. Always include PARTITION BY to enable parallel processing of window functions across multiple partitions."
+  dependencies: []
+  metadata:
+    confidence_score: 0.93
+    created_by: "system"
+    approved_by: "cloud_ceo_team"
+    version: "1.0"
+  example_bad_query: |
+    SELECT
+      user_id,
+      order_date,
+      ROW_NUMBER() OVER (ORDER BY order_date) as row_num
+    FROM orders
+  example_fixed_query: |
+    SELECT
+      user_id,
+      order_date,
+      ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY order_date) as row_num
+    FROM orders
+  documentation_links:
+    - "https://docs.databricks.com/sql/language-manual/sql-ref-syntax-qry-select-window.html"
+    - "https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-window.html"

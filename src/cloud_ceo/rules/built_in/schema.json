@@ -1,0 +1,192 @@
+{
+  "$defs": {
+    "DetectionMethod": {
+      "description": "Detection method types.",
+      "enum": [
+        "AST",
+        "pattern",
+        "LLM",
+        "query_plan"
+      ],
+      "title": "DetectionMethod",
+      "type": "string"
+    },
+    "RuleCategory": {
+      "description": "Rule category classification.",
+      "enum": [
+        "universal",
+        "context-dependent"
+      ],
+      "title": "RuleCategory",
+      "type": "string"
+    },
+    "RuleMetadata": {
+      "description": "Metadata associated with a rule.",
+      "properties": {
+        "confidence_score": {
+          "description": "Confidence score between 0.0 and 1.0",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence Score",
+          "type": "number"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "User or system that created the rule",
+          "title": "Created By"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "User who approved the rule",
+          "title": "Approved By"
+        },
+        "created_at": {
+          "description": "Creation timestamp",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "description": "Last update timestamp",
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "version": {
+          "default": "1.0",
+          "description": "Schema version for backward compatibility",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "confidence_score"
+      ],
+      "title": "RuleMetadata",
+      "type": "object"
+    },
+    "RuleSeverity": {
+      "description": "Rule severity levels.",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "RuleSeverity",
+      "type": "string"
+    }
+  },
+  "description": "Complete rule schema with validation.",
+  "example": {
+    "category": "universal",
+    "dependencies": [
+      "spark_catalog"
+    ],
+    "detection_method": "AST",
+    "explanation": "Using SELECT * can cause performance issues and breaks when schema changes. Always specify explicit column names for maintainability and performance.",
+    "fix_template": "SELECT col1, col2, col3 FROM",
+    "metadata": {
+      "approved_by": "data_team",
+      "confidence_score": 0.95,
+      "created_by": "system",
+      "version": "1.0"
+    },
+    "name": "Avoid SELECT * in production queries",
+    "pattern": "SELECT * FROM",
+    "rule_id": "SPARK_001",
+    "severity": "high"
+  },
+  "properties": {
+    "rule_id": {
+      "description": "Rule identifier in format PREFIX_NNN (e.g., SPARK_001)",
+      "pattern": "^[A-Z]+_\\d{3}$",
+      "title": "Rule Id",
+      "type": "string"
+    },
+    "name": {
+      "description": "Rule name",
+      "maxLength": 200,
+      "minLength": 10,
+      "title": "Name",
+      "type": "string"
+    },
+    "category": {
+      "$ref": "#/$defs/RuleCategory",
+      "description": "Rule category"
+    },
+    "severity": {
+      "$ref": "#/$defs/RuleSeverity",
+      "description": "Rule severity level"
+    },
+    "detection_method": {
+      "$ref": "#/$defs/DetectionMethod",
+      "description": "Detection method"
+    },
+    "pattern": {
+      "description": "Detection pattern",
+      "minLength": 1,
+      "title": "Pattern",
+      "type": "string"
+    },
+    "fix_template": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional fix template",
+      "title": "Fix Template"
+    },
+    "explanation": {
+      "description": "Rule explanation (minimum 50 chars)",
+      "minLength": 50,
+      "title": "Explanation",
+      "type": "string"
+    },
+    "dependencies": {
+      "description": "Required data sources for FR21",
+      "items": {
+        "type": "string"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/RuleMetadata",
+      "description": "Rule metadata"
+    }
+  },
+  "required": [
+    "rule_id",
+    "name",
+    "category",
+    "severity",
+    "detection_method",
+    "pattern",
+    "explanation",
+    "metadata"
+  ],
+  "title": "RuleSchema",
+  "type": "object"
+}
