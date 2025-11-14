@@ -8,10 +8,10 @@
 # MAGIC This notebook creates comprehensive sample datasets and queries for demonstrating Cloud CEO's anti-pattern detection and optimization capabilities.
 # MAGIC
 # MAGIC **Features:**
-# MAGIC - 🏦 Financial Services (customers, transactions, fraud alerts)
-# MAGIC - 🏥 Healthcare (patients, appointments, prescriptions)
-# MAGIC - ⚡ Energy/Utilities (customers, smart meter readings, outages)
-# MAGIC - 🏢 General Enterprise (users, events, products)
+# MAGIC - 🏦 Financial Services (financial_customers, financial_transactions, financial_fraud_alerts)
+# MAGIC - 🏥 Healthcare (healthcare_patients, healthcare_appointments, healthcare_prescriptions)
+# MAGIC - ⚡ Energy/Utilities (energy_customers, energy_smart_meter_readings, energy_outages)
+# MAGIC - 🏢 General Enterprise (enterprise_users, enterprise_events, enterprise_products)
 # MAGIC - 📝 Sample queries (good and bad examples)
 # MAGIC - 🏷️ Unity Catalog tags for compliance
 # MAGIC
@@ -212,8 +212,8 @@ def create_financial_tables(
     )
 
     customers_df = customer_spec.build()
-    customers_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.customers")
-    tables["customers"] = {"row_count": num_customers, "industry": "financial"}
+    customers_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.financial_customers")
+    tables["financial_customers"] = {"row_count": num_customers, "industry": "financial"}
 
     # 2. Transactions table (partitioned by date)
     print(f"  Creating transactions table ({num_transactions:,} rows)...")
@@ -261,8 +261,8 @@ def create_financial_tables(
     transactions_df = transaction_spec.build()
     transactions_df.write.mode("overwrite").format("delta") \
         .partitionBy("transaction_date") \
-        .saveAsTable(f"{schema}.transactions")
-    tables["transactions"] = {"row_count": num_transactions, "industry": "financial", "partitioned": True}
+        .saveAsTable(f"{schema}.financial_transactions")
+    tables["financial_transactions"] = {"row_count": num_transactions, "industry": "financial", "partitioned": True}
 
     # 3. Fraud alerts table
     print(f"  Creating fraud_alerts table ({num_fraud_alerts:,} rows)...")
@@ -297,8 +297,8 @@ def create_financial_tables(
     )
 
     fraud_df = fraud_spec.build()
-    fraud_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.fraud_alerts")
-    tables["fraud_alerts"] = {"row_count": num_fraud_alerts, "industry": "financial"}
+    fraud_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.financial_fraud_alerts")
+    tables["financial_fraud_alerts"] = {"row_count": num_fraud_alerts, "industry": "financial"}
 
     return tables
 
@@ -364,8 +364,8 @@ def create_healthcare_tables(
     )
 
     patients_df = patient_spec.build()
-    patients_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.patients")
-    tables["patients"] = {"row_count": num_patients, "industry": "healthcare"}
+    patients_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.healthcare_patients")
+    tables["healthcare_patients"] = {"row_count": num_patients, "industry": "healthcare"}
 
     # 2. Appointments table (partitioned by date)
     print(f"  Creating appointments table ({num_appointments:,} rows)...")
@@ -409,8 +409,8 @@ def create_healthcare_tables(
     appointments_df = appointment_spec.build()
     appointments_df.write.mode("overwrite").format("delta") \
         .partitionBy("appointment_date") \
-        .saveAsTable(f"{schema}.appointments")
-    tables["appointments"] = {"row_count": num_appointments, "industry": "healthcare", "partitioned": True}
+        .saveAsTable(f"{schema}.healthcare_appointments")
+    tables["healthcare_appointments"] = {"row_count": num_appointments, "industry": "healthcare", "partitioned": True}
 
     # 3. Prescriptions table (partitioned by date)
     print(f"  Creating prescriptions table ({num_prescriptions:,} rows)...")
@@ -446,8 +446,8 @@ def create_healthcare_tables(
     prescriptions_df = prescription_spec.build()
     prescriptions_df.write.mode("overwrite").format("delta") \
         .partitionBy("prescribed_date") \
-        .saveAsTable(f"{schema}.prescriptions")
-    tables["prescriptions"] = {"row_count": num_prescriptions, "industry": "healthcare", "partitioned": True}
+        .saveAsTable(f"{schema}.healthcare_prescriptions")
+    tables["healthcare_prescriptions"] = {"row_count": num_prescriptions, "industry": "healthcare", "partitioned": True}
 
     return tables
 
@@ -548,8 +548,8 @@ def create_energy_tables(
     readings_df = reading_spec.build()
     readings_df.write.mode("overwrite").format("delta") \
         .partitionBy(expr("date(reading_datetime)")) \
-        .saveAsTable(f"{schema}.smart_meter_readings")
-    tables["smart_meter_readings"] = {"row_count": num_readings, "industry": "energy", "partitioned": True}
+        .saveAsTable(f"{schema}.energy_smart_meter_readings")
+    tables["energy_smart_meter_readings"] = {"row_count": num_readings, "industry": "energy", "partitioned": True}
 
     # 3. Outages table
     print(f"  Creating outages table ({num_outages:,} rows)...")
@@ -586,8 +586,8 @@ def create_energy_tables(
     )
 
     outages_df = outage_spec.build()
-    outages_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.outages")
-    tables["outages"] = {"row_count": num_outages, "industry": "energy"}
+    outages_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.energy_outages")
+    tables["energy_outages"] = {"row_count": num_outages, "industry": "energy"}
 
     return tables
 
@@ -647,8 +647,8 @@ def create_enterprise_tables(
     )
 
     users_df = user_spec.build()
-    users_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.users")
-    tables["users"] = {"row_count": num_users, "industry": "enterprise"}
+    users_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.enterprise_users")
+    tables["enterprise_users"] = {"row_count": num_users, "industry": "enterprise"}
 
     # 2. Events table (massive scale, partitioned)
     print(f"  Creating events table ({num_events:,} rows)...")
@@ -691,8 +691,8 @@ def create_enterprise_tables(
     events_df = event_spec.build()
     events_df.write.mode("overwrite").format("delta") \
         .partitionBy(expr("date(timestamp)")) \
-        .saveAsTable(f"{schema}.events")
-    tables["events"] = {"row_count": num_events, "industry": "enterprise", "partitioned": True}
+        .saveAsTable(f"{schema}.enterprise_events")
+    tables["enterprise_events"] = {"row_count": num_events, "industry": "enterprise", "partitioned": True}
 
     # 3. Products table
     print(f"  Creating products table ({num_products:,} rows)...")
@@ -724,8 +724,8 @@ def create_enterprise_tables(
     )
 
     products_df = product_spec.build()
-    products_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.products")
-    tables["products"] = {"row_count": num_products, "industry": "enterprise"}
+    products_df.write.mode("overwrite").format("delta").saveAsTable(f"{schema}.enterprise_products")
+    tables["enterprise_products"] = {"row_count": num_products, "industry": "enterprise"}
 
     return tables
 
@@ -743,10 +743,10 @@ def apply_compliance_tags(
 ) -> None:
     """Apply Unity Catalog compliance tags to tables and columns."""
 
-    if "customers" in tables:
+    if "financial_customers" in tables:
         print("  Tagging financial services tables...")
         spark.sql(f"""
-            ALTER TABLE {schema}.customers SET TAGS (
+            ALTER TABLE {schema}.financial_customers SET TAGS (
                 'sensitivity' = 'high',
                 'fca_regulated' = 'true',
                 'gdpr_relevant' = 'true',
@@ -755,26 +755,26 @@ def apply_compliance_tags(
             )
         """)
         spark.sql(f"""
-            ALTER TABLE {schema}.customers
+            ALTER TABLE {schema}.financial_customers
             ALTER COLUMN account_number SET TAGS ('pii' = 'true', 'financial_data' = 'true')
         """)
         spark.sql(f"""
-            ALTER TABLE {schema}.customers
+            ALTER TABLE {schema}.financial_customers
             ALTER COLUMN email SET TAGS ('pii' = 'true')
         """)
 
         spark.sql(f"""
-            ALTER TABLE {schema}.transactions SET TAGS (
+            ALTER TABLE {schema}.financial_transactions SET TAGS (
                 'sensitivity' = 'high',
                 'fca_regulated' = 'true',
                 'retention_years' = '7'
             )
         """)
 
-    if "patients" in tables:
+    if "healthcare_patients" in tables:
         print("  Tagging healthcare tables...")
         spark.sql(f"""
-            ALTER TABLE {schema}.patients SET TAGS (
+            ALTER TABLE {schema}.healthcare_patients SET TAGS (
                 'sensitivity' = 'critical',
                 'hipaa_phi' = 'true',
                 'nhs_data_toolkit' = 'applicable',
@@ -782,22 +782,22 @@ def apply_compliance_tags(
             )
         """)
         spark.sql(f"""
-            ALTER TABLE {schema}.patients
+            ALTER TABLE {schema}.healthcare_patients
             ALTER COLUMN nhs_number SET TAGS ('pii' = 'true', 'patient_identifier' = 'true')
         """)
         spark.sql(f"""
-            ALTER TABLE {schema}.patients
+            ALTER TABLE {schema}.healthcare_patients
             ALTER COLUMN name SET TAGS ('pii' = 'true')
         """)
         spark.sql(f"""
-            ALTER TABLE {schema}.patients
+            ALTER TABLE {schema}.healthcare_patients
             ALTER COLUMN date_of_birth SET TAGS ('pii' = 'true')
         """)
 
     if "energy_customers" in tables:
         print("  Tagging energy/utilities tables...")
         spark.sql(f"""
-            ALTER TABLE {schema}.smart_meter_readings SET TAGS (
+            ALTER TABLE {schema}.energy_smart_meter_readings SET TAGS (
                 'sensitivity' = 'critical',
                 'behavioral_data' = 'true',
                 'ofgem_regulated' = 'true',
@@ -906,10 +906,10 @@ def validate_demo_environment(
             return validation_results
 
         expected_tables = [
-            "customers", "transactions", "fraud_alerts",
-            "patients", "appointments", "prescriptions",
-            "energy_customers", "smart_meter_readings", "outages",
-            "users", "events", "products",
+            "financial_customers", "financial_transactions", "financial_fraud_alerts",
+            "healthcare_patients", "healthcare_appointments", "healthcare_prescriptions",
+            "energy_customers", "energy_smart_meter_readings", "energy_outages",
+            "enterprise_users", "enterprise_events", "enterprise_products",
             "sample_queries", "demo_runs"
         ]
 
